@@ -109,7 +109,6 @@ def ejecutar_testeo():
     print(f"\nEjecutando prueba para {benchmark.upper()} — {config}")
     f = globals()[benchmark]
     result = algoritmo_propio(benchmark, config, gamma, kappa, met_range, f, Xmin, Xmax)
-    guardar_resultados(result)
 
     print(f"\nPrueba finalizada. Fitness final: {result['fitness']:.6f}")
 
