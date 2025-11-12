@@ -76,9 +76,7 @@ def algoritmo_propio(benchmark, config, gamma_value, kappa, met_range, f, Xmin, 
             F_fail *= gamma_value
 
         convergence.append(f_best)
-
-        # Mostrar progreso en consola cada 50 generaciones
-        if G % 50 == 0 or G == Gmax - 1:
+        #Imprimir resultados por iteraciones
             print(f"Iteración {G}/{Gmax} - Mejor fitness: {f_best:.6f}")
 
     return {'fitness': float(f_best), 'convergence': convergence,
