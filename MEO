@@ -1,0 +1,136 @@
+import numpy as np
+import os
+import json
+import matplotlib.pyplot as plt
+
+# ============================
+# FUNCIONES DE BENCHMARKS
+# ============================
+def sphere(x): return np.sum(x**2)
+def rastrigin(x): return np.sum(x**2 - 10 * np.cos(2 * np.pi * x) + 10)
+def rosenbrock(x): return np.sum(100*(x[1:] - x[:-1]**2)**2 + (1 - x[:-1])**2)
+def ackley(x):
+    d = len(x)
+    part1 = -20 * np.exp(-0.2 * np.sqrt(np.sum(x**2) / d))
+    part2 = -np.exp(np.sum(np.cos(2 * np.pi * x)) / d)
+    return part1 + part2 + 20 + np.e
+def griewank(x):
+    part1 = np.sum(x**2) / 4000
+    part2 = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
+    return part1 - part2 + 1
+
+# ============================
+# MÉTODO REPARATIVO
+# ============================
+def metodo_reparativo(X, Xmin, Xmax):
+    """Restringe los valores de la población dentro de los límites de búsqueda."""
+    return np.clip(X, Xmin, Xmax)
+
+# ============================
+# ALGORITMO PROPIO FINAL (versión única de ejecución)
+# ============================
+def algoritmo_propio(benchmark, config, gamma_value, kappa, met_range, f, Xmin, Xmax):
+    """
+    Algoritmo MET basado en la ecuación de movimiento metabólico y regeneración adaptativa.
+    """
+    NP, D, Gmax = 50, 30, 1000      # Tamaño de población, dimensión, iteraciones
+    F_fail = 5.0                    # Índice de fallo inicial
+    convergence = []                # Curva de convergencia
+
+    # Población inicial
+    X = np.random.uniform(Xmin, Xmax, (NP, D))
+    fitness = np.array([f(x) for x in X])
+    best_idx = np.argmin(fitness)
+    X_best = X[best_idx].copy()
+    f_best = fitness[best_idx]
+
+    # Ciclo principal
+    for G in range(Gmax):
+        MET_t = 1 + (met_range * (Gmax - G)) / Gmax  # Escala metabólica
+
+        for i in range(NP):
+            # Movimiento metabólico
+            X_new = X[i] + (MET_t * 3.5 * F_fail * (X_best - X[i])) / kappa
+            X_new = metodo_reparativo(X_new, Xmin, Xmax)
+            f_new = f(X_new)
+
+            # Selección
+            if f_new < fitness[i]:
+                fitness[i] = f_new
+                X[i] = X_new
+
+        # Actualizar mejor global
+        gen_best_idx = np.argmin(fitness)
+        if fitness[gen_best_idx] < f_best:
+            f_best = fitness[gen_best_idx]
+            X_best = X[gen_best_idx].copy()
+
+            # Regeneración parcial (mitad peor)
+            sorted_idx = np.argsort(fitness)
+            worst_half_idx = sorted_idx[NP//2:]
+            for i in worst_half_idx:
+                X[i] = X_best - X[i]
+                fitness[i] = f(X[i])
+            F_fail = 1.0
+        else:
+            F_fail *= gamma_value
+
+        convergence.append(f_best)
+
+        # Mostrar progreso en consola cada 50 generaciones
+        if G % 50 == 0 or G == Gmax - 1:
+            print(f"Iteración {G}/{Gmax} - Mejor fitness: {f_best:.6f}")
+
+    return {'fitness': float(f_best), 'convergence': convergence,
+            'benchmark': benchmark, 'config': config,
+            'gamma': gamma_value, 'kappa': kappa, 'met_range': met_range}
+
+# ============================
+# GUARDADO DE RESULTADOS
+# ============================
+def guardar_resultados(run_data):
+    """Guarda los resultados de la ejecución en formato JSON."""
+    benchmark = run_data['benchmark']
+    config = run_data['config']
+    result_dir = os.path.join("results", "MET_final", benchmark, config)
+    os.makedirs(result_dir, exist_ok=True)
+    file_path = os.path.join(result_dir, "run_1.json")
+
+    with open(file_path, 'w') as f:
+        json.dump(run_data, f, indent=2)
+
+    print(f"\n[OK] Resultado guardado en {file_path}")
+
+# ============================
+# PARÁMETROS DE EJECUCIÓN
+# ============================
+def ejecutar_testeo():
+    # 🔧 Configuración manual del experimento (modifica estas variables)
+    benchmark = 'rastrigin'   # <- Cambia aquí el benchmark
+    config = 'C2'             # <- Cambia aquí la configuración
+    gamma = 0.9               # Factor de decrecimiento del índice de fallo
+    kappa = 150               # Factor de ajuste metabólico
+    met_range = 6             # Rango de gasto metabólico
+
+    # Límites del benchmark
+    bounds = {
+        'sphere': (-100, 100),
+        'rastrigin': (-5.12, 5.12),
+        'rosenbrock': (-30, 30),
+        'ackley': (-32.768, 32.768),
+        'griewank': (-600, 600)
+    }
+    Xmin, Xmax = bounds[benchmark]
+
+    print(f"\n🚀 Ejecutando experimento final para {benchmark.upper()} — {config}")
+    f = globals()[benchmark]
+    result = algoritmo_propio(benchmark, config, gamma, kappa, met_range, f, Xmin, Xmax)
+    guardar_resultados(result)
+
+    print(f"\n✅ Experimento finalizado. Fitness final: {result['fitness']:.6f}")
+
+# ============================
+# EJECUCIÓN PRINCIPAL
+# ============================
+if __name__ == "__main__":
+    ejecutar_testeo()
