@@ -86,31 +86,15 @@ def algoritmo_propio(benchmark, config, gamma_value, kappa, met_range, f, Xmin, 
             'gamma': gamma_value, 'kappa': kappa, 'met_range': met_range}
 
 # ============================
-# GUARDADO DE RESULTADOS
-# ============================
-def guardar_resultados(run_data):
-    """Guarda los resultados de la ejecución en formato JSON."""
-    benchmark = run_data['benchmark']
-    config = run_data['config']
-    result_dir = os.path.join("results", "MET_final", benchmark, config)
-    os.makedirs(result_dir, exist_ok=True)
-    file_path = os.path.join(result_dir, "run_1.json")
-
-    with open(file_path, 'w') as f:
-        json.dump(run_data, f, indent=2)
-
-    print(f"\n[OK] Resultado guardado en {file_path}")
-
-# ============================
 # PARÁMETROS DE EJECUCIÓN
 # ============================
 def ejecutar_testeo():
-    # 🔧 Configuración manual del experimento (modifica estas variables)
-    benchmark = 'rastrigin'   # <- Cambia aquí el benchmark
-    config = 'C2'             # <- Cambia aquí la configuración
-    gamma = 0.9               # Factor de decrecimiento del índice de fallo
-    kappa = 150               # Factor de ajuste metabólico
-    met_range = 6             # Rango de gasto metabólico
+    #  Configuración manual del experimento (modifica estas variables)
+    benchmark = 'rastrigin'   #Modificar Benchmark(sphere,rastrigin,rosenbrock,ackley,griewank)
+    config = 'C2'             #Modificar configuracion
+    gamma = 0.9               
+    kappa = 150               
+    met_range = 6             
 
     # Límites del benchmark
     bounds = {
@@ -122,12 +106,12 @@ def ejecutar_testeo():
     }
     Xmin, Xmax = bounds[benchmark]
 
-    print(f"\n🚀 Ejecutando experimento final para {benchmark.upper()} — {config}")
+    print(f"\nEjecutando prueba para {benchmark.upper()} — {config}")
     f = globals()[benchmark]
     result = algoritmo_propio(benchmark, config, gamma, kappa, met_range, f, Xmin, Xmax)
     guardar_resultados(result)
 
-    print(f"\n✅ Experimento finalizado. Fitness final: {result['fitness']:.6f}")
+    print(f"\nPrueba finalizada. Fitness final: {result['fitness']:.6f}")
 
 # ============================
 # EJECUCIÓN PRINCIPAL
