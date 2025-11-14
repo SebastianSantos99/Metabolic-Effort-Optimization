@@ -8,6 +8,11 @@ El objetivo del proyecto es optimizar un conjunto de funciones utilizando un enf
 
 El código incluye varias funciones de benchmark, un algoritmo de optimización personalizado, y herramientas para gestionar los límites del espacio de búsqueda y las actualizaciones de la población.
 
+## Instrucciones
+
+Para personalizar el experimento, modifica los valores de `benchmark` (elige entre 'sphere', 'rastrigin', 'rosenbrock', 'ackley', 'griewank') y `config` (elige entre 'C1', 'C2', 'C3', 'C4') dentro de la función `ejecutar_testeo()` en el código.
+
+
 ## Requisitos
 
 Este proyecto requiere Python 3.6 o superior y las siguientes librerías:
