@@ -1,7 +1,24 @@
 # MEO – Metaheurística Basada en Gasto Metabólico
 
-Este repositorio contiene la implementación final del algoritmo MEO (Metabolic Effort Optimization),  
-una metaheurística propuesta inspirada en el comportamiento fisiológico del gasto energético y  
-adaptada al contexto de optimización continua.
+Este proyecto implementa un algoritmo de optimización basado en la ecuación de movimiento metabólico y regeneración adaptativa (MEO). El algoritmo es evaluado usando varios benchmarks comunes en problemas de optimización, como el benchmark de *Rastrigin*, *Sphere*, *Rosenbrock*, *Ackley* y *Griewank*.
+
+## Descripción
+
+El objetivo del proyecto es optimizar un conjunto de funciones utilizando un enfoque basado en la simulación de un comportamiento metabólico con regeneración adaptativa. La optimización se realiza mediante un algoritmo que adapta los parámetros de la población durante el proceso de búsqueda.
+
+El código incluye varias funciones de benchmark, un algoritmo de optimización personalizado, y herramientas para gestionar los límites del espacio de búsqueda y las actualizaciones de la población.
+
+## Requisitos
+
+Este proyecto requiere Python 3.6 o superior y las siguientes librerías:
+
+- `numpy` para cálculos numéricos
+- `matplotlib` para visualización
+
+Instalar las dependencias:
+
+```bash
+pip install numpy matplotlib
+
 
 
