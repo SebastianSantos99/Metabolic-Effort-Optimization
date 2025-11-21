@@ -1,0 +1,220 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+import sys
+from math import ceil
+
+# ============================
+# FUNCIONES DE BENCHMARKS
+# ============================
+def sphere(x): return np.sum(x**2)
+def rastrigin(x): return np.sum(x**2 - 10 * np.cos(2 * np.pi * x) + 10)
+def rosenbrock(x): return np.sum(100*(x[1:] - x[:-1]**2)**2 + (1 - x[:-1])**2)
+def ackley(x):
+    d = len(x)
+    part1 = -20 * np.exp(-0.2 * np.sqrt(np.sum(x**2) / d))
+    part2 = -np.exp(np.sum(np.cos(2 * np.pi * x)) / d)
+    return part1 + part2 + 20 + np.e
+def griewank(x):
+    part1 = np.sum(x**2) / 4000
+    part2 = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
+    return part1 - part2 + 1
+
+# ============================
+# MÉTODO REPARATIVO
+# ============================
+def metodo_reparativo(X, Xmin, Xmax):
+    return np.clip(X, Xmin, Xmax)
+
+# ============================
+# L-SHADE ALGORITHM
+# ============================
+def lshade_algorithm(func, lb_vec, ub_vec, D, NP_init=100, NP_min=4, Gmax=1000, seed=None,
+                    mem_size=5, p=0.1, arc_rate=1.4):
+    rng = np.random.RandomState(seed)
+
+    M_F = [0.5] * mem_size
+    M_CR = [0.5] * mem_size
+    mem_idx = 0
+    X = None
+    fitness = None
+    archive = []
+    NFE = 0
+    MAX_NFE = None
+
+    def eval_func(x):
+        nonlocal NFE
+        NFE += 1
+        return float(func(x))
+
+    def population_size_by_nfe():
+        nonlocal MAX_NFE
+        if MAX_NFE is None:
+            MAX_NFE = int(Gmax * NP_init)
+        ratio = min(1.0, float(NFE) / float(MAX_NFE))
+        NP_target = int(round(NP_min + (NP_init - NP_min) * (1.0 - ratio)))
+        return max(NP_min, NP_target)
+
+    def sample_mem_index():
+        return rng.randint(0, len(M_F))
+
+    def adapt_memory(S_F, S_CR, wS, c=0.1):
+        nonlocal mem_idx
+        if len(S_F) == 0: return
+        lf = weighted_lehmer_mean(S_F, np.array(wS, dtype=float))
+        la = weighted_lehmer_mean(S_CR, np.array(wS, dtype=float))
+        idx = mem_idx % mem_size
+        M_F[idx] = (1 - c) * M_F[idx] + c * lf
+        M_CR[idx] = (1 - c) * M_CR[idx] + c * la
+        mem_idx += 1
+
+    def init_population(NP=None):
+        nonlocal X, fitness
+        NP = NP or NP_init
+        X = rng.uniform(lb_vec, ub_vec, size=(NP, D))
+        fitness = np.array([eval_func(X[i]) for i in range(NP)], dtype=float)
+
+    def repair_midpoint(v, xi, lb, ub):
+        return np.clip(v, lb, ub)
+
+    init_population(NP_init)
+    NFE = 0
+    MAX_NFE = int(Gmax * NP_init)
+    NP = X.shape[0]
+    best_idx = np.argmin(fitness)
+    X_best = X[best_idx].copy()
+    f_best = float(fitness[best_idx])
+    history = []
+
+    for G in range(Gmax):
+        NP_target = population_size_by_nfe()
+        if NP_target < NP:
+            order = np.argsort(fitness)
+            keep_idx = order[:NP_target]
+            X = X[keep_idx]
+            fitness = fitness[keep_idx]
+        NP = X.shape[0]
+
+        maxA = int(ceil(arc_rate * NP))
+        if len(archive) > maxA:
+            archive = archive[:maxA]
+
+        S_F, S_CR, wS = [], [], []
+        new_X = np.empty_like(X)
+        new_f = np.empty_like(fitness)
+        p_num = max(2, int(ceil(p * NP)))
+        pbest_indices = np.argsort(fitness)[:p_num]
+
+        for i in range(NP):
+            xi, fi = X[i].copy(), float(fitness[i])
+            mem_i = sample_mem_index()
+            mu_F, mu_CR = M_F[mem_i], M_CR[mem_i]
+
+            Fi = None
+            trials = 0
+            while Fi is None or Fi <= 0:
+                Fi = rng.standard_cauchy() * 0.1 + mu_F
+                trials += 1
+                if trials > 10:
+                    Fi = 0.1
+                    break
+            Fi = min(Fi, 1.0)
+            CRi = float(np.clip(rng.normal(loc=mu_CR, scale=0.1), 0.0, 1.0))
+
+            pbest_idx = int(rng.choice(pbest_indices))
+            xpbest = X[pbest_idx]
+            all_indices = list(range(NP))
+            exclude = {i, pbest_idx}
+            pool = [idx for idx in all_indices if idx not in exclude]
+            r1, r2 = rng.choice(pool, 2, replace=False)
+
+            xr1 = X[r1]
+            if len(archive) > 0 and rng.rand() < 0.5:
+                xr2 = archive[rng.randint(0, len(archive))]
+            else:
+                xr2 = X[r2]
+
+            v = xi + Fi * (xpbest - xi) + Fi * (xr1 - xr2)
+            v = repair_midpoint(v, xi, lb_vec, ub_vec)
+            jrand = rng.randint(0, D)
+            u = np.copy(xi)
+            for j in range(D):
+                if (rng.rand() < CRi) or (j == jrand):
+                    u[j] = v[j]
+            u = repair_midpoint(u, xi, lb_vec, ub_vec)
+            fu = eval_func(u)
+
+            if fu <= fi:
+                new_X[i] = u
+                new_f[i] = fu
+                archive.append(xi.copy())
+                if len(archive) > maxA:
+                    archive.pop(0)
+                S_F.append(Fi)
+                S_CR.append(CRi)
+                wS.append(abs(fi - fu))
+            else:
+                new_X[i], new_f[i] = xi, fi
+
+        X, fitness = new_X, new_f
+        idx_min = np.argmin(fitness)
+        if float(fitness[idx_min]) < f_best:
+            f_best = float(fitness[idx_min])
+            X_best = X[idx_min].copy()
+        if len(S_F) > 0:
+            adapt_memory(S_F, S_CR, wS)
+        history.append((int(NFE), float(f_best)))
+
+    return {"X_best": X_best, "f_best": f_best, "history": history}
+
+def weighted_lehmer_mean(values, weights):
+    return np.sum(weights * values) / np.sum(weights)
+
+# ============================
+# EJECUCIÓN DEL ALGORITMO
+# ============================
+def ejecutar_testeo():
+    if len(sys.argv) != 3:
+        print("Uso: python L-SHADE.py <benchmark> <configuracion>")
+        sys.exit(1)
+
+    benchmark = sys.argv[1].lower()
+    config = sys.argv[2].upper()
+
+    config_dict = {
+        'C1': {'NP': 50, 'Gmax': 1000},
+        'C2': {'NP': 100, 'Gmax': 500},
+        'C3': {'NP': 200, 'Gmax': 250},
+        'C4': {'NP': 400, 'Gmax': 125}
+    }
+
+    if config not in config_dict:
+        print(f"Configuración '{config}' no reconocida.")
+        sys.exit(1)
+
+    NP, Gmax = config_dict[config]['NP'], config_dict[config]['Gmax']
+
+    bounds = {
+        'sphere': (-100, 100),
+        'rastrigin': (-5.12, 5.12),
+        'rosenbrock': (-30, 30),
+        'ackley': (-32.768, 32.768),
+        'griewank': (-600, 600)
+    }
+
+    if benchmark not in bounds:
+        print(f"Benchmark '{benchmark}' no reconocido.")
+        sys.exit(1)
+
+    Xmin, Xmax = bounds[benchmark]
+
+    print(f"\nEjecutando prueba para {benchmark.upper()} — {config}")
+    f = globals()[benchmark]
+    result = lshade_algorithm(f, Xmin, Xmax, 30, NP_init=NP, NP_min=4, Gmax=Gmax, seed=None, mem_size=5, p=0.1, arc_rate=1.4)
+
+    print(f"\nPrueba finalizada. Mejor fitness: {result['f_best']:.6f}")
+    return result
+
+if __name__ == "__main__":
+    ejecutar_testeo()
+
