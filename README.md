@@ -34,6 +34,7 @@ Estas configuraciones controlan el tamaño de la población y el número de gene
 ## 3. Cómo Ejecutar Cada Algoritmo
 
 `python PSO.py <benchmark> <config>`
+
   Ejemplo de ejecucion
   
 `python PSO.py griewank C1`
