@@ -10,7 +10,34 @@ El código incluye varias funciones de benchmark, un algoritmo de optimización 
 
 ## Instrucciones
 
-Para personalizar el experimento, modifica los valores de `benchmark` (elige entre 'sphere', 'rastrigin', 'rosenbrock', 'ackley', 'griewank') y `config` (elige entre 'C1', 'C2', 'C3', 'C4') dentro de la función `ejecutar_testeo()` en el código.
+Para personalizar el experimento, simplemente debes modificar los valores de `benchmark` y `config` en la función `ejecutar_testeo()` del código de cada algoritmo. A continuación te explico cómo hacerlo:
+
+## 1. Valores de Benchmark:
+Puedes elegir entre los siguientes benchmarks (funciones de optimización) que se utilizarán en el experimento:
+- `'sphere'`
+- `'rastrigin'`
+- `'rosenbrock'`
+- `'ackley'`
+- `'griewank'`
+
+Cada uno de estos benchmarks tiene diferentes características y puede ser adecuado para evaluar el rendimiento del algoritmo en diferentes tipos de funciones.
+
+## 2. Configuraciones (config):
+Las configuraciones disponibles son las siguientes:
+- `'C1'`: Población de 50, 1000 generaciones.
+- `'C2'`: Población de 100, 500 generaciones.
+- `'C3'`: Población de 200, 250 generaciones.
+- `'C4'`: Población de 400, 125 generaciones.
+
+Estas configuraciones controlan el tamaño de la población y el número de generaciones para cada experimento. Puedes elegir la configuración que mejor se adapte a tu escenario de prueba.
+
+## 3. Cómo Ejecutar Cada Algoritmo
+
+### PSO (Particle Swarm Optimization)
+Para ejecutar el algoritmo PSO clásico, utiliza el siguiente comando desde la terminal:
+```bash
+python PSO.py <benchmark> <config>
+
 
 
 ## Requisitos
