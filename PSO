@@ -1,0 +1,105 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+import sys
+
+# ============================
+# FUNCIONES DE BENCHMARKS
+# ============================
+def sphere(x): return np.sum(x**2)
+def rastrigin(x): return np.sum(x**2 - 10 * np.cos(2 * np.pi * x) + 10)
+def rosenbrock(x): return np.sum(100*(x[1:] - x[:-1]**2)**2 + (1 - x[:-1])**2)
+def ackley(x):
+    d = len(x)
+    part1 = -20 * np.exp(-0.2 * np.sqrt(np.sum(x**2) / d))
+    part2 = -np.exp(np.sum(np.cos(2 * np.pi * x)) / d)
+    return part1 + part2 + 20 + np.e
+def griewank(x):
+    part1 = np.sum(x**2) / 4000
+    part2 = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
+    return part1 - part2 + 1
+
+# ============================
+# MÉTODO REPARATIVO
+# ============================
+def metodo_reparativo(X, Xmin, Xmax):
+    return np.clip(X, Xmin, Xmax)
+
+# ============================
+# ALGORITMO PSO CLÁSICO
+# ============================
+def pso_classico(benchmark, f, Xmin, Xmax, NP, D, Gmax):
+    C1, C2, Vmax = 1.49, 1.49, 10  # Coeficientes de aceleración fijos
+    X = np.random.uniform(Xmin, Xmax, (NP, D))
+    V = np.random.uniform(-Vmax, Vmax, (NP, D))
+    Pbest = X.copy()
+    Pbest_fitness = np.array([f(x) for x in Pbest])
+    Gbest = X[np.argmin(Pbest_fitness)]
+    Gbest_fitness = np.min(Pbest_fitness)
+    convergence = []
+
+    for G in range(Gmax):
+        for i in range(NP):
+            V[i] += C1 * np.random.random() * (Pbest[i] - X[i]) + C2 * np.random.random() * (Gbest - X[i])
+            X[i] += V[i]
+            X = metodo_reparativo(X, Xmin, Xmax)
+            fit = f(X[i])
+            if fit < Pbest_fitness[i]:
+                Pbest_fitness[i], Pbest[i] = fit, X[i]
+
+        convergence.append(np.min(Pbest_fitness))
+        idx_best = np.argmin(Pbest_fitness)
+        Gbest, Gbest_fitness = X[idx_best], Pbest_fitness[idx_best]
+
+    return {'fitness': float(Gbest_fitness), 'convergence': convergence}
+
+# ============================
+# EJECUCIÓN DEL ALGORITMO
+# ============================
+def ejecutar_testeo():
+    if len(sys.argv) != 3:
+        print("Uso: python PSO.py <benchmark> <configuracion>")
+        sys.exit(1)
+
+    benchmark = sys.argv[1].lower()
+    config = sys.argv[2].upper()
+
+    # Configuraciones dinámicas para población e iteraciones
+    config_dict = {
+        'C1': {'NP': 50, 'Gmax': 1000},
+        'C2': {'NP': 100, 'Gmax': 500},
+        'C3': {'NP': 200, 'Gmax': 250},
+        'C4': {'NP': 400, 'Gmax': 125}
+    }
+
+    if config not in config_dict:
+        print(f"Configuración '{config}' no reconocida.")
+        sys.exit(1)
+
+    NP, Gmax = config_dict[config]['NP'], config_dict[config]['Gmax']
+    D = 30  # Dimensión fija
+
+    # Límites de los benchmarks
+    bounds = {
+        'sphere': (-100, 100),
+        'rastrigin': (-5.12, 5.12),
+        'rosenbrock': (-30, 30),
+        'ackley': (-32.768, 32.768),
+        'griewank': (-600, 600)
+    }
+
+    if benchmark not in bounds:
+        print(f"Benchmark '{benchmark}' no reconocido.")
+        sys.exit(1)
+
+    Xmin, Xmax = bounds[benchmark]
+
+    print(f"\nEjecutando prueba para {benchmark.upper()} — {config}")
+    f = globals()[benchmark]
+    result = pso_classico(benchmark, f, Xmin, Xmax, NP, D, Gmax)
+
+    print(f"\nPrueba finalizada. Mejor fitness: {result['fitness']:.6f}")
+    return result
+
+if __name__ == "__main__":
+    ejecutar_testeo()
