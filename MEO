@@ -2,10 +2,9 @@ import numpy as np
 import os
 import json
 import matplotlib.pyplot as plt
+import sys
 
-# ============================
-# FUNCIONES DE BENCHMARKS
-# ============================
+# Funciones de Benchmark
 def sphere(x): return np.sum(x**2)
 def rastrigin(x): return np.sum(x**2 - 10 * np.cos(2 * np.pi * x) + 10)
 def rosenbrock(x): return np.sum(100*(x[1:] - x[:-1]**2)**2 + (1 - x[:-1])**2)
@@ -19,82 +18,87 @@ def griewank(x):
     part2 = np.prod(np.cos(x / np.sqrt(np.arange(1, len(x) + 1))))
     return part1 - part2 + 1
 
-# ============================
-# MÉTODO REPARATIVO
-# ============================
+# Método para asegurar que los valores estén dentro de los límites
 def metodo_reparativo(X, Xmin, Xmax):
-    """Restringe los valores de la población dentro de los límites de búsqueda."""
     return np.clip(X, Xmin, Xmax)
 
-# ============================
-# ALGORITMO PROPIO FINAL (versión única de ejecución)
-# ============================
-def algoritmo_propio(benchmark, config, gamma_value, kappa, met_range, f, Xmin, Xmax):
-    """
-    Algoritmo MET basado en la ecuación de movimiento metabólico y regeneración adaptativa.
-    """
-    NP, D, Gmax = 50, 30, 1000      # Tamaño de población, dimensión, iteraciones
-    F_fail = 5.0                    # Índice de fallo inicial
-    convergence = []                # Curva de convergencia
+# Algoritmo MEO (Metabolic Effort Optimization)
+def meo_algorithm(benchmark, config, gamma_value, kappa, met_range, f, Xmin, Xmax):
+    config_dict = {
+        'C1': {'NP': 50, 'Gmax': 1000},
+        'C2': {'NP': 100, 'Gmax': 500},
+        'C3': {'NP': 200, 'Gmax': 250},
+        'C4': {'NP': 400, 'Gmax': 125}
+    }
 
-    # Población inicial
+    if config not in config_dict:
+        print(f"Configuración '{config}' no reconocida.")
+        sys.exit(1)
+
+    NP, Gmax = config_dict[config]['NP'], config_dict[config]['Gmax']
+    D = 30
+    F_fail = 1.0
+    convergence = []
+    FailGap = 0.1
+
     X = np.random.uniform(Xmin, Xmax, (NP, D))
     fitness = np.array([f(x) for x in X])
     best_idx = np.argmin(fitness)
     X_best = X[best_idx].copy()
     f_best = fitness[best_idx]
 
-    # Ciclo principal
     for G in range(Gmax):
-        MET_t = 1 + (met_range * (Gmax - G)) / Gmax  # Escala metabólica
+        MET_t = 1 + (met_range * (Gmax - G)) / Gmax
 
         for i in range(NP):
-            # Movimiento metabólico
             X_new = X[i] + (MET_t * 3.5 * F_fail * (X_best - X[i])) / kappa
             X_new = metodo_reparativo(X_new, Xmin, Xmax)
             f_new = f(X_new)
 
-            # Selección
             if f_new < fitness[i]:
                 fitness[i] = f_new
                 X[i] = X_new
 
-        # Actualizar mejor global
         gen_best_idx = np.argmin(fitness)
         if fitness[gen_best_idx] < f_best:
             f_best = fitness[gen_best_idx]
             X_best = X[gen_best_idx].copy()
-
-            # Regeneración parcial (mitad peor)
-            sorted_idx = np.argsort(fitness)
-            worst_half_idx = sorted_idx[NP//2:]
-            for i in worst_half_idx:
-                X[i] = X_best - X[i]
-                fitness[i] = f(X[i])
             F_fail = 1.0
         else:
             F_fail *= gamma_value
 
+        sorted_idx = np.argsort(fitness)
+        worst_half_idx = sorted_idx[NP//2:]
+
+        for i in worst_half_idx:
+            if fitness[i] > f_best * (1 + FailGap):
+                eta = 0.5 + 0.5 * (F_fail)
+                X[i] = X_best - eta * (X[i] - X_best)
+                fitness[i] = f(X[i])
+                FailGap *= gamma_value
+            else:
+                FailGap = 0.1
+
         convergence.append(f_best)
-        #Imprimir resultados por iteraciones
         print(f"Iteración {G}/{Gmax} - Mejor fitness: {f_best:.6f}")
 
     return {'fitness': float(f_best), 'convergence': convergence,
             'benchmark': benchmark, 'config': config,
             'gamma': gamma_value, 'kappa': kappa, 'met_range': met_range}
 
-# ============================
-# PARÁMETROS DE EJECUCIÓN
-# ============================
+# Ejecución desde CMD
 def ejecutar_testeo():
-    #  Configuración manual del experimento (modifica estas variables)
-    benchmark = 'rastrigin'   #Modificar Benchmark(sphere,rastrigin,rosenbrock,ackley,griewank)
-    config = 'C2'             #Modificar configuracion
-    gamma = 0.9               
-    kappa = 150               
-    met_range = 6             
+    if len(sys.argv) != 3:
+        print("Uso: python MEO.py <benchmark> <configuracion>")
+        sys.exit(1)
 
-    # Límites del benchmark
+    benchmark = sys.argv[1].lower()
+    config = sys.argv[2].upper()
+
+    gamma = 0.9
+    kappa = 150
+    met_range = 6
+
     bounds = {
         'sphere': (-100, 100),
         'rastrigin': (-5.12, 5.12),
@@ -102,16 +106,20 @@ def ejecutar_testeo():
         'ackley': (-32.768, 32.768),
         'griewank': (-600, 600)
     }
+
+    if benchmark not in bounds:
+        print(f"Benchmark '{benchmark}' no reconocido.")
+        sys.exit(1)
+
     Xmin, Xmax = bounds[benchmark]
 
     print(f"\nEjecutando prueba para {benchmark.upper()} — {config}")
     f = globals()[benchmark]
-    result = algoritmo_propio(benchmark, config, gamma, kappa, met_range, f, Xmin, Xmax)
+    result = meo_algorithm(benchmark, config, gamma, kappa, met_range, f, Xmin, Xmax)
 
     print(f"\nPrueba finalizada. Fitness final: {result['fitness']:.6f}")
+    return result
 
-# ============================
-# EJECUCIÓN PRINCIPAL
-# ============================
+# Ejecución principal
 if __name__ == "__main__":
     ejecutar_testeo()
