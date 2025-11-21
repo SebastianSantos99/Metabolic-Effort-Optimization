@@ -33,10 +33,10 @@ Estas configuraciones controlan el tamaño de la población y el número de gene
 
 ## 3. Cómo Ejecutar Cada Algoritmo
 
-### PSO (Particle Swarm Optimization)
-Para ejecutar el algoritmo PSO clásico, utiliza el siguiente comando desde la terminal:
-```bash
-python PSO.py <benchmark> <config>
+`python PSO.py <benchmark> <config>`
+  Ejemplo de ejecucion
+  
+`python PSO.py griewank C1`
 
 
 
